@@ -116,18 +116,6 @@ pub fn concat_nfa(first: &NFA, second: &NFA) -> NFA {
     });
 
     nfa
-    // first.states[first.accept].edges.push(Edge {
-    //     label: Transition::Epsilon,
-    //     to: second.start + offset,
-    // });
-
-    // first.states.extend(new_second_states);
-
-    // NFA {
-    //     states: first.states,
-    //     start: first.start,
-    //     accept: second.accept + offset,
-    // }
 }
 
 fn epsilon_closure(nfa: &NFA, states: &HashSet<usize>) -> HashSet<usize> {
