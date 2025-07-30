@@ -81,3 +81,9 @@ impl<'a> Parser<'a> {
         }
     }
 }
+
+pub fn parse(input: &str) -> Regex {
+    let lexer = Lexer::new(input);
+    let mut parser = Parser::new(lexer);
+    parser.parse()
+}

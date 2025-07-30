@@ -1,23 +1,25 @@
 use std::collections::HashSet;
 
-#[derive(Debug, Clone)]
+use crate::regex::parser::Regex;
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Transition {
     Char(char),
     Epsilon,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Edge {
     pub label: Transition,
     pub to: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct State {
     pub edges: Vec<Edge>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct NFA {
     pub states: Vec<State>,
     pub start: usize,
@@ -29,93 +31,107 @@ impl NFA {
         self.states.push(State { edges: vec![] });
         self.states.len() - 1
     }
+
+    fn add_transition(&mut self, from: usize, to: usize, label: Transition) {
+        self.states[from].edges.push(Edge { label, to })
+    }
 }
 
-pub fn char_nfa(c: char) -> NFA {
-    let mut nfa = NFA {
-        states: vec![],
-        start: 0,
-        accept: 0,
-    };
-    let start = nfa.new_state();
-    let accept = nfa.new_state();
-    nfa.states[start].edges.push(Edge {
-        label: Transition::Char(c),
-        to: accept,
-    });
-    nfa.start = start;
-    nfa.accept = accept;
-    nfa
-}
+pub fn from_regex(regex: &Regex) -> NFA {
+    match regex {
+        Regex::Char(c) => {
+            let mut nfa = NFA {
+                states: vec![],
+                start: 0,
+                accept: 0,
+            };
+            let start = nfa.new_state();
+            let end = nfa.new_state();
+            nfa.start = start;
+            nfa.accept = end;
+            nfa.add_transition(start, end, Transition::Char(*c));
+            nfa
+        }
 
-pub fn star_nfa(inner: NFA) -> NFA {
-    let mut nfa = NFA {
-        states: inner.states.clone(),
-        start: 0,
-        accept: 0,
-    };
-    let start = nfa.new_state();
-    let accept = nfa.new_state();
+        Regex::Concat(left, right) => {
+            let a = from_regex(left);
+            let mut b = from_regex(right);
 
-    // ε-transition from start to inner start and to accept
-    nfa.states[start].edges.push(Edge {
-        label: Transition::Epsilon,
-        to: inner.start,
-    });
-    nfa.states[start].edges.push(Edge {
-        label: Transition::Epsilon,
-        to: accept,
-    });
+            let offset = a.states.len();
+            b.states.iter_mut().for_each(|s| {
+                s.edges.iter_mut().for_each(|e| e.to += offset);
+            });
 
-    // ε-transition from inner accept to inner start and to accept
-    nfa.states[inner.accept].edges.push(Edge {
-        label: Transition::Epsilon,
-        to: inner.start,
-    });
-    nfa.states[inner.accept].edges.push(Edge {
-        label: Transition::Epsilon,
-        to: accept,
-    });
+            b.start += offset;
+            b.accept += offset;
 
-    nfa.start = start;
-    nfa.accept = accept;
-    nfa
-}
+            let mut states = a.states;
+            states[a.accept].edges.push(Edge {
+                label: Transition::Epsilon,
+                to: b.start,
+            });
+            states.extend(b.states);
 
-pub fn concat_nfa(first: &NFA, second: &NFA) -> NFA {
-    let offset = first.states.len();
+            NFA {
+                states,
+                start: a.start,
+                accept: b.accept,
+            }
+        }
 
-    // Shift states in second NFA by offest
-    let new_second_states: Vec<State> = second
-        .states
-        .clone()
-        .into_iter()
-        .map(|mut state| {
-            state.edges = state
-                .edges
-                .into_iter()
-                .map(|mut edge| {
-                    edge.to += offset;
-                    edge
-                })
-                .collect();
-            state
-        })
-        .collect();
+        Regex::Alt(left, right) => {
+            let mut a = from_regex(left);
+            let mut b = from_regex(right);
 
-    // Add ε-transition from first's accept to second's offset start
-    let mut nfa = NFA {
-        states: [first.states.clone(), new_second_states].concat(),
-        start: first.start,
-        accept: second.accept + offset,
-    };
+            let mut nfa = NFA {
+                states: vec![],
+                start: 0,
+                accept: 0,
+            };
+            let start = nfa.new_state();
+            let offset_a = nfa.states.len();
+            a.states.iter_mut().for_each(|s| {
+                s.edges.iter_mut().for_each(|e| e.to += offset_a);
+            });
+            nfa.states.extend(a.states);
+            let offset_b = nfa.states.len();
+            b.states.iter_mut().for_each(|s| {
+                s.edges.iter_mut().for_each(|e| e.to += offset_b);
+            });
+            nfa.states.extend(b.states);
+            let accept = nfa.new_state();
 
-    nfa.states[first.accept].edges.push(Edge {
-        label: Transition::Epsilon,
-        to: second.start + offset,
-    });
+            nfa.add_transition(start, a.start + offset_a, Transition::Epsilon);
+            nfa.add_transition(start, b.start + offset_b, Transition::Epsilon);
+            nfa.add_transition(a.accept + offset_a, accept, Transition::Epsilon);
+            nfa.add_transition(b.accept + offset_b, accept, Transition::Epsilon);
 
-    nfa
+            nfa.start = start;
+            nfa.accept = accept;
+            nfa
+        }
+
+        Regex::Star(inner) => {
+            let base = from_regex(inner);
+            let mut nfa = NFA {
+                states: base.states.clone(),
+                start: 0,
+                accept: 0,
+            };
+            let start = nfa.new_state();
+            let accept = nfa.new_state();
+
+            nfa.add_transition(start, base.start, Transition::Epsilon);
+            nfa.add_transition(start, accept, Transition::Epsilon);
+            nfa.add_transition(base.accept, base.start, Transition::Epsilon);
+            nfa.add_transition(base.accept, accept, Transition::Epsilon);
+
+            nfa.states.extend(base.states);
+            nfa.start = start;
+            nfa.accept = accept;
+            nfa
+        }
+    }
 }
 
 fn epsilon_closure(nfa: &NFA, states: &HashSet<usize>) -> HashSet<usize> {
@@ -155,4 +171,177 @@ pub fn matches(nfa: &NFA, input: &str) -> bool {
     }
 
     current_states.contains(&nfa.accept)
+}
+
+#[cfg(test)]
+mod structure_tests {
+    use super::*;
+    use crate::regex::parser::Regex::{self, *};
+
+    fn b(r: Regex) -> Box<Regex> {
+        Box::new(r)
+    }
+
+    #[test]
+    fn from_regex_char_structure() {
+        let actual = from_regex(&Char('a'));
+
+        let expected = NFA {
+            states: vec![
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('a'),
+                        to: 1,
+                    }],
+                },
+                State { edges: vec![] },
+            ],
+            start: 0,
+            accept: 1,
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn from_regex_concat_structure() {
+        let actual = from_regex(&Concat(b(Char('x')), b(Char('y'))));
+
+        let expected = NFA {
+            states: vec![
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('x'),
+                        to: 1,
+                    }],
+                },
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Epsilon,
+                        to: 2,
+                    }],
+                },
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('y'),
+                        to: 3,
+                    }],
+                },
+                State { edges: vec![] },
+            ],
+            start: 0,
+            accept: 3,
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn from_regex_alt_structure() {
+        let actual = from_regex(&Alt(b(Char('a')), b(Char('b'))));
+
+        let expected = NFA {
+            states: vec![
+                // state 0: start
+                State {
+                    edges: vec![
+                        Edge {
+                            label: Transition::Epsilon,
+                            to: 1,
+                        },
+                        Edge {
+                            label: Transition::Epsilon,
+                            to: 3,
+                        },
+                    ],
+                },
+                // state 1: a start
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('a'),
+                        to: 2,
+                    }],
+                },
+                // state 2: a accept
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Epsilon,
+                        to: 5,
+                    }],
+                },
+                // state 3: b start
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('b'),
+                        to: 4,
+                    }],
+                },
+                // state 4: b accept
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Epsilon,
+                        to: 5,
+                    }],
+                },
+                // state 5: final accept
+                State { edges: vec![] },
+            ],
+            start: 0,
+            accept: 5,
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn from_regex_star_structure() {
+        let actual = from_regex(&Star(Box::new(Char('z'))));
+
+        let expected = NFA {
+            states: vec![
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('z'),
+                        to: 1,
+                    }],
+                },
+                State {
+                    edges: vec![
+                        Edge {
+                            label: Transition::Epsilon,
+                            to: 0,
+                        },
+                        Edge {
+                            label: Transition::Epsilon,
+                            to: 3,
+                        },
+                    ],
+                },
+                State {
+                    edges: vec![
+                        Edge {
+                            label: Transition::Epsilon,
+                            to: 0,
+                        },
+                        Edge {
+                            label: Transition::Epsilon,
+                            to: 3,
+                        },
+                    ],
+                },
+                State { edges: vec![] },
+                State {
+                    edges: vec![Edge {
+                        label: Transition::Char('z'),
+                        to: 1,
+                    }],
+                },
+                State { edges: vec![] },
+            ],
+            start: 2,
+            accept: 3,
+        };
+
+        assert_eq!(actual, expected);
+    }
 }

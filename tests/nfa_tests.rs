@@ -1,8 +1,14 @@
-use adam_regex::nfa::engine::{char_nfa, concat_nfa, matches, star_nfa};
+use adam_regex::nfa::engine::{from_regex, matches};
+use adam_regex::regex::parser::Regex::{self, *};
+
+fn b(r: Regex) -> Box<Regex> {
+    Box::new(r)
+}
 
 #[test]
 fn char_nfa_basic() {
-    let nfa = char_nfa('a');
+    // 'a'
+    let nfa = from_regex(&Char('a'));
     assert!(matches(&nfa, "a"));
     assert!(!matches(&nfa, ""));
     assert!(!matches(&nfa, "b"));
@@ -11,7 +17,8 @@ fn char_nfa_basic() {
 
 #[test]
 fn star_nfa_zero_or_more() {
-    let nfa = star_nfa(char_nfa('a'));
+    // 'a*'
+    let nfa = from_regex(&Star(b(Char('a'))));
     assert!(matches(&nfa, ""));
     assert!(matches(&nfa, "a"));
     assert!(matches(&nfa, "aa"));
@@ -22,7 +29,8 @@ fn star_nfa_zero_or_more() {
 
 #[test]
 fn concat_two_chars() {
-    let nfa = concat_nfa(&char_nfa('a'), &char_nfa('b'));
+    // 'ab'
+    let nfa = from_regex(&Concat(b(Char('a')), b(Char('b'))));
     assert!(matches(&nfa, "ab"));
     assert!(!matches(&nfa, ""));
     assert!(!matches(&nfa, "a"));
@@ -32,9 +40,10 @@ fn concat_two_chars() {
 
 #[test]
 fn concat_with_star() {
-    let a = char_nfa('a');
-    let b_star = star_nfa(char_nfa('b'));
-    let nfa = concat_nfa(&a, &b_star);
+    // 'ab*'
+    let a = Char('a');
+    let b_star = Star(b(Char('b')));
+    let nfa = from_regex(&Concat(b(a), b(b_star)));
 
     assert!(matches(&nfa, "a"));
     assert!(matches(&nfa, "ab"));
@@ -45,8 +54,9 @@ fn concat_with_star() {
 
 #[test]
 fn star_of_concat() {
-    let ab = concat_nfa(&char_nfa('a'), &char_nfa('b'));
-    let star = star_nfa(ab);
+    // '(ab)*'
+    let ab = Concat(b(Char('a')), b(Char('b')));
+    let star = from_regex(&Star(b(ab)));
 
     assert!(matches(&star, ""));
     assert!(matches(&star, "ab"));
@@ -59,9 +69,10 @@ fn star_of_concat() {
 
 #[test]
 fn nested_star_star() {
-    let base = char_nfa('x');
-    let star1 = star_nfa(base);
-    let star2 = star_nfa(star1);
+    // 'x**'
+    let base = Char('x');
+    let star1 = Star(b(base));
+    let star2 = from_regex(&Star(b(star1)));
 
     assert!(matches(&star2, ""));
     assert!(matches(&star2, "x"));
@@ -69,19 +80,23 @@ fn nested_star_star() {
 }
 
 #[test]
-fn invalid_inputs() {
-    let nfa = concat_nfa(&char_nfa('a'), &char_nfa('b'));
+fn alt_star() {
+    // '(a|b)*'
+    let alt = Star(b(Alt(b(Char('a')), b(Char('b')))));
+    let nfa = from_regex(&alt);
 
-    assert!(!matches(&nfa, "ba"));
-    assert!(!matches(&nfa, "aa"));
-    assert!(!matches(&nfa, "bb"));
+    assert!(matches(&nfa, "aaa"));
+    assert!(matches(&nfa, "bbb"));
+    assert!(matches(&nfa, "abbb"));
+    assert!(matches(&nfa, "aaab"));
     assert!(!matches(&nfa, "abc"));
 }
 
 #[test]
 fn long_string_repetition() {
-    let a_star = star_nfa(char_nfa('a'));
-    let nfa = concat_nfa(&a_star, &char_nfa('b'));
+    // 'a*b'
+    let a_star = Star(b(Char('a')));
+    let nfa = from_regex(&Concat(b(a_star), b(Char('b'))));
 
     assert!(matches(&nfa, "b"));
     assert!(matches(&nfa, "ab"));
@@ -92,6 +107,6 @@ fn long_string_repetition() {
 
 #[test]
 fn empty_string_on_char_nfa() {
-    let nfa = char_nfa('a');
+    let nfa = from_regex(&Char('a'));
     assert!(!matches(&nfa, ""));
 }
