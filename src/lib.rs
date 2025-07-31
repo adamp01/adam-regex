@@ -1,3 +1,3 @@
-pub mod nfa;
-pub mod regex;
-
+pub mod lexer;
+pub mod parser;
+pub mod matcher;

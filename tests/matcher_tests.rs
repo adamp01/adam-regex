@@ -1,5 +1,5 @@
-use adam_regex::nfa::engine::{from_regex, matches};
-use adam_regex::regex::parser::Regex::{self, *};
+use adam_regex::matcher::{from_regex, matches};
+use adam_regex::parser::Regex::{self, *};
 
 fn b(r: Regex) -> Box<Regex> {
     Box::new(r)

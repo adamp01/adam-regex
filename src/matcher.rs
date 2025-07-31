@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::regex::parser::Regex;
+use crate::parser::Regex;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Transition {
@@ -178,7 +178,7 @@ pub fn matches(nfa: &NFA, input: &str) -> bool {
 #[cfg(test)]
 mod structure_tests {
     use super::*;
-    use crate::regex::parser::Regex::{self, *};
+    use crate::parser::Regex::{self, *};
 
     fn b(r: Regex) -> Box<Regex> {
         Box::new(r)

@@ -1,4 +1,4 @@
-use crate::regex::lexer::{Lexer, Token};
+use crate::lexer::{Lexer, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Regex {

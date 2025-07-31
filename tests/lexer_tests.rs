@@ -1,4 +1,4 @@
-use adam_regex::regex::lexer::{Lexer, Token};
+use adam_regex::lexer::{Lexer, Token};
 
 fn lex_all(input: &str) -> Vec<Token> {
     let mut lexer = Lexer::new(input);

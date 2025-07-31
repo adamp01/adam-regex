@@ -1,5 +1,5 @@
-use adam_regex::regex::parser::parse;
-use adam_regex::nfa::engine::{from_regex, matches};
+use adam_regex::parser::parse;
+use adam_regex::matcher::{from_regex, matches};
 
 fn main() {
     let regex = parse(&"(a|b)*c");

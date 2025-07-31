@@ -1,4 +1,4 @@
-use adam_regex::regex::parser::{parse, Regex::{self, *}};
+use adam_regex::parser::{parse, Regex::{self, *}};
 
 fn boxed(expr: Regex) -> Box<Regex> {
     Box::new(expr)
