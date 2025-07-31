@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
-use crate::parser::Regex;
+use crate::{dfa::DFA, parser::Regex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Transition {
@@ -42,6 +42,117 @@ impl NFA {
         });
         self.start += offset;
         self.accept += offset;
+    }
+
+    fn epsilon_closure(&self, states: &BTreeSet<usize>) -> BTreeSet<usize> {
+        let mut closure = states.clone();
+        let mut stack: Vec<usize> = states.iter().cloned().collect();
+
+        while let Some(state) = stack.pop() {
+            for edge in &self.states[state].edges {
+                if let Transition::Epsilon = edge.label {
+                    if !closure.contains(&edge.to) {
+                        closure.insert(edge.to);
+                        stack.push(edge.to);
+                    }
+                }
+            }
+        }
+        closure
+    }
+
+    fn move_on(&self, states: &BTreeSet<usize>, input: char) -> BTreeSet<usize> {
+        let mut result = BTreeSet::new();
+
+        for &state in states {
+            for edge in &self.states[state].edges {
+                if let Transition::Char(c) = edge.label {
+                    if c == input {
+                        result.insert(edge.to);
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    fn extract_alphabet(&self) -> BTreeSet<char> {
+        let mut chars = BTreeSet::new();
+        for state in &self.states {
+            for edge in &state.edges {
+                if let Transition::Char(c) = edge.label {
+                    chars.insert(c);
+                }
+            }
+        }
+        chars
+    }
+
+    pub fn to_dfa(&self) -> DFA {
+        let alphabet = self.extract_alphabet();
+        let mut state_map = HashMap::new();
+        let mut dfa_states = vec![];
+        let mut accepting = BTreeSet::new();
+
+        let start_set = self.epsilon_closure(&BTreeSet::from([self.start]));
+        state_map.insert(start_set.clone(), 0);
+        dfa_states.push(HashMap::new());
+
+        let mut queue = VecDeque::new();
+        queue.push_back(start_set.clone());
+
+        while let Some(current_set) = queue.pop_front() {
+            let current_idx = state_map[&current_set];
+            for &c in &alphabet {
+                let move_set = self.move_on(&current_set, c);
+                if move_set.is_empty() {
+                    continue;
+                }
+                let next_set = self.epsilon_closure(&move_set);
+
+                let next_idx = *state_map.entry(next_set.clone()).or_insert_with(|| {
+                    let idx = dfa_states.len();
+                    dfa_states.push(HashMap::new());
+                    queue.push_back(next_set.clone());
+                    idx
+                });
+
+                dfa_states[current_idx].insert(c, next_idx);
+            }
+
+            if current_set.contains(&self.accept) {
+                accepting.insert(current_idx);
+            }
+        }
+
+        DFA {
+            states: dfa_states,
+            start: 0,
+            accepting,
+        }
+    }
+
+    pub fn matches(&self, input: &str) -> bool {
+        let mut current_states: BTreeSet<usize> =
+            self.epsilon_closure(&BTreeSet::from([self.start]));
+
+        for c in input.chars() {
+            let mut next_states = BTreeSet::new();
+
+            for &state in &current_states {
+                for edge in &self.states[state].edges {
+                    if let Transition::Char(ec) = edge.label {
+                        if ec == c {
+                            next_states.insert(edge.to);
+                        }
+                    }
+                }
+            }
+
+            current_states = self.epsilon_closure(&next_states);
+        }
+
+        current_states.contains(&self.accept)
     }
 }
 
@@ -134,45 +245,6 @@ pub fn from_regex(regex: &Regex) -> NFA {
             nfa
         }
     }
-}
-
-fn epsilon_closure(nfa: &NFA, states: &HashSet<usize>) -> HashSet<usize> {
-    let mut closure = states.clone();
-    let mut stack: Vec<usize> = states.iter().cloned().collect();
-
-    while let Some(state) = stack.pop() {
-        for edge in &nfa.states[state].edges {
-            if let Transition::Epsilon = edge.label {
-                if !closure.contains(&edge.to) {
-                    closure.insert(edge.to);
-                    stack.push(edge.to);
-                }
-            }
-        }
-    }
-    closure
-}
-
-pub fn matches(nfa: &NFA, input: &str) -> bool {
-    let mut current_states: HashSet<usize> = epsilon_closure(nfa, &HashSet::from([nfa.start]));
-
-    for c in input.chars() {
-        let mut next_states = HashSet::new();
-
-        for &state in &current_states {
-            for edge in &nfa.states[state].edges {
-                if let Transition::Char(ec) = edge.label {
-                    if ec == c {
-                        next_states.insert(edge.to);
-                    }
-                }
-            }
-        }
-
-        current_states = epsilon_closure(nfa, &next_states);
-    }
-
-    current_states.contains(&nfa.accept)
 }
 
 #[cfg(test)]
