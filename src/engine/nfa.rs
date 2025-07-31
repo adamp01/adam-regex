@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap, VecDeque};
 
-use crate::{dfa::DFA, parser::Regex};
+use crate::{ast::Regex, engine::dfa::DFA};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Transition {
@@ -131,29 +131,6 @@ impl NFA {
             accepting,
         }
     }
-
-    pub fn matches(&self, input: &str) -> bool {
-        let mut current_states: BTreeSet<usize> =
-            self.epsilon_closure(&BTreeSet::from([self.start]));
-
-        for c in input.chars() {
-            let mut next_states = BTreeSet::new();
-
-            for &state in &current_states {
-                for edge in &self.states[state].edges {
-                    if let Transition::Char(ec) = edge.label {
-                        if ec == c {
-                            next_states.insert(edge.to);
-                        }
-                    }
-                }
-            }
-
-            current_states = self.epsilon_closure(&next_states);
-        }
-
-        current_states.contains(&self.accept)
-    }
 }
 
 pub fn from_regex(regex: &Regex) -> NFA {
@@ -250,7 +227,7 @@ pub fn from_regex(regex: &Regex) -> NFA {
 #[cfg(test)]
 mod structure_tests {
     use super::*;
-    use crate::parser::Regex::{self, *};
+    use crate::ast::Regex::{self, *};
 
     fn b(r: Regex) -> Box<Regex> {
         Box::new(r)

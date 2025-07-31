@@ -1,14 +1,12 @@
-use adam_regex::dfa::DFA;
-use adam_regex::nfa::from_regex;
-use adam_regex::parser::Regex::{self, *};
+use adam_regex::ast::Regex::{self, *};
+use adam_regex::matcher::Pattern;
 
 fn b(r: Regex) -> Box<Regex> {
     Box::new(r)
 }
 
-fn dfa_from(r: &Regex) -> DFA {
-    let nfa = from_regex(r);
-    nfa.to_dfa()
+fn dfa_from(r: &Regex) -> Pattern {
+    Pattern::from_ast(r)
 }
 
 #[test]

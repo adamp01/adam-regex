@@ -1,9 +1,7 @@
-use adam_regex::parser::parse;
-use adam_regex::nfa::{from_regex};
+use adam_regex::matcher::Pattern;
 
 fn main() {
-    let regex = parse(&"(a|b)*c");
-    let nfa = from_regex(&regex);
+    let pattern = Pattern::from_str(&"(a|b)*c").unwrap();
 
-    assert!(nfa.matches("aaaabbbbbc"))
+    assert!(pattern.matches("aaaabbbbbc"))
 }
