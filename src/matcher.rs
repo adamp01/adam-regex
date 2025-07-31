@@ -4,11 +4,11 @@ use crate::{
     parser::parser,
 };
 
-pub struct Pattern {
+pub struct AdamRegex {
     dfa: DFA,
 }
 
-impl Pattern {
+impl AdamRegex {
     pub fn from_str(input: &str) -> Result<Self, String> {
         let ast = parser::parse(input);
         let dfa = compiler::compile(&ast);

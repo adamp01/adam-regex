@@ -1,7 +1,7 @@
-use adam_regex::matcher::Pattern;
+use adam_regex::matcher::AdamRegex;
 
 fn main() {
-    let pattern = Pattern::from_str(&"(a|b)*c").unwrap();
+    let re = AdamRegex::from_str(&"(a|b)*c").unwrap();
 
-    assert!(pattern.matches("aaaabbbbbc"))
+    assert!(re.matches("aaaabbbbbc"))
 }

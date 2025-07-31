@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     fn parse_concat(&mut self) -> Regex {
         let mut expr = self.parse_star();
 
-        while matches!(self.current, Token::Char(_) | Token::LParen) {
+        while matches!(self.current, Token::Byte(_) | Token::LParen) {
             let right = self.parse_star();
             expr = Regex::Concat(Box::new(expr), Box::new(right));
         }
@@ -56,8 +56,8 @@ impl<'a> Parser<'a> {
 
     fn parse_atom(&mut self) -> Regex {
         match &self.current {
-            Token::Char(c) => {
-                let node = Regex::Char(*c);
+            Token::Byte(b) => {
+                let node = Regex::Byte(*b);
                 self.advance();
                 node
             }
@@ -93,19 +93,19 @@ mod parser_tests {
     #[test]
     fn test_single_char() {
         let ast = parse("a");
-        assert_eq!(ast, Char('a'));
+        assert_eq!(ast, Byte(b'a'));
     }
 
     #[test]
     fn test_concat_two_chars() {
         let ast = parse("ab");
-        assert_eq!(ast, Concat(boxed(Char('a')), boxed(Char('b'))));
+        assert_eq!(ast, Concat(boxed(Byte(b'a')), boxed(Byte(b'b'))));
     }
 
     #[test]
     fn test_star_operator() {
         let ast = parse("a*");
-        assert_eq!(ast, Star(boxed(Char('a'))));
+        assert_eq!(ast, Star(boxed(Byte(b'a'))));
     }
 
     #[test]
@@ -113,14 +113,14 @@ mod parser_tests {
         let ast_nested = parse("ab*");
         assert_eq!(
             ast_nested,
-            Concat(boxed(Char('a')), boxed(Star(boxed(Char('b')))))
+            Concat(boxed(Byte(b'a')), boxed(Star(boxed(Byte(b'b')))))
         );
     }
 
     #[test]
     fn test_alternation() {
         let ast = parse("a|b");
-        assert_eq!(ast, Alt(boxed(Char('a')), boxed(Char('b'))));
+        assert_eq!(ast, Alt(boxed(Byte(b'a')), boxed(Byte(b'b'))));
     }
 
     #[test]
@@ -129,8 +129,8 @@ mod parser_tests {
         assert_eq!(
             ast,
             Alt(
-                boxed(Concat(boxed(Char('a')), boxed(Char('b')))),
-                boxed(Char('c'))
+                boxed(Concat(boxed(Byte(b'a')), boxed(Byte(b'b')))),
+                boxed(Byte(b'c'))
             )
         );
     }
@@ -138,7 +138,7 @@ mod parser_tests {
     #[test]
     fn test_star_precedence() {
         let ast = parse("a*|b");
-        assert_eq!(ast, Alt(boxed(Star(boxed(Char('a')))), boxed(Char('b'))));
+        assert_eq!(ast, Alt(boxed(Star(boxed(Byte(b'a')))), boxed(Byte(b'b'))));
     }
 
     #[test]
@@ -147,8 +147,8 @@ mod parser_tests {
         assert_eq!(
             ast,
             Concat(
-                boxed(Alt(boxed(Char('a')), boxed(Char('b')))),
-                boxed(Char('c'))
+                boxed(Alt(boxed(Byte(b'a')), boxed(Byte(b'b')))),
+                boxed(Byte(b'c'))
             )
         );
     }
@@ -159,8 +159,8 @@ mod parser_tests {
         assert_eq!(
             ast,
             Concat(
-                boxed(Star(boxed(Alt(boxed(Char('a')), boxed(Char('b')))))),
-                boxed(Char('c'))
+                boxed(Star(boxed(Alt(boxed(Byte(b'a')), boxed(Byte(b'b')))))),
+                boxed(Byte(b'c'))
             )
         );
     }

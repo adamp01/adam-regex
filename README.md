@@ -9,4 +9,5 @@ The engine will be exposed to Python via FFI, where it will be benchmarked again
 | Pattern     | Engine          | Time (µs) | Notes                        |
 |-------------|------------------|-----------|------------------------------|
 | `(a\|b)*`    | adam (v1)        | 210       | Char based, no DFA minimisation    |
+| `(a\|b)*`    | adam (v2)        | 25       | u8 based, no DFA minimisation    |
 | `(a\|b)*`    | std::regex       | 0.012     |   |

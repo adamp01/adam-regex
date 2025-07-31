@@ -1,10 +1,12 @@
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
+
+use bit_set::BitSet;
 
 use crate::{ast::Regex, engine::dfa::DFA};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Transition {
-    Char(char),
+    Byte(u8),
     Epsilon,
 }
 
@@ -44,15 +46,20 @@ impl NFA {
         self.accept += offset;
     }
 
-    fn epsilon_closure(&self, states: &BTreeSet<usize>) -> BTreeSet<usize> {
-        let mut closure = states.clone();
-        let mut stack: Vec<usize> = states.iter().cloned().collect();
+    fn epsilon_closure(&self, states: &BitSet) -> BitSet {
+        let mut closure = BitSet::with_capacity(self.states.len());
+        let mut stack: Vec<usize> = Vec::new();
+
+        for state in states.iter() {
+            if closure.insert(state) {
+                stack.push(state);
+            }
+        }
 
         while let Some(state) = stack.pop() {
             for edge in &self.states[state].edges {
                 if let Transition::Epsilon = edge.label {
-                    if !closure.contains(&edge.to) {
-                        closure.insert(edge.to);
+                    if closure.insert(edge.to) {
                         stack.push(edge.to);
                     }
                 }
@@ -61,50 +68,42 @@ impl NFA {
         closure
     }
 
-    fn move_on(&self, states: &BTreeSet<usize>, input: char) -> BTreeSet<usize> {
-        let mut result = BTreeSet::new();
+    fn move_on(&self, states: &BitSet, byte: u8) -> BitSet {
+        let mut next = BitSet::with_capacity(self.states.len());
 
-        for &state in states {
+        for state in states {
             for edge in &self.states[state].edges {
-                if let Transition::Char(c) = edge.label {
-                    if c == input {
-                        result.insert(edge.to);
+                if let Transition::Byte(b) = edge.label {
+                    if b == byte {
+                        next.insert(edge.to);
                     }
                 }
             }
         }
-        result
-    }
-
-    fn extract_alphabet(&self) -> BTreeSet<char> {
-        let mut chars = BTreeSet::new();
-        for state in &self.states {
-            for edge in &state.edges {
-                if let Transition::Char(c) = edge.label {
-                    chars.insert(c);
-                }
-            }
-        }
-        chars
+        next 
     }
 
     pub fn to_dfa(&self) -> DFA {
-        let alphabet = self.extract_alphabet();
         let mut state_map = HashMap::new();
-        let mut dfa_states = vec![];
-        let mut accepting = BTreeSet::new();
-
-        let start_set = self.epsilon_closure(&BTreeSet::from([self.start]));
-        state_map.insert(start_set.clone(), 0);
-        dfa_states.push(HashMap::new());
+        let mut dfa_states = Vec::new();
+        let mut accepting = BitSet::with_capacity(self.states.len());
 
         let mut queue = VecDeque::new();
-        queue.push_back(start_set.clone());
+
+        let mut start_set = BitSet::with_capacity(self.states.len());
+        start_set.insert(self.start);
+        let start_closure = self.epsilon_closure(&start_set);
+
+        state_map.insert(start_closure.clone(), 0);
+        dfa_states.push([None; 256]);
+
+        queue.push_back(start_closure.clone());
 
         while let Some(current_set) = queue.pop_front() {
             let current_idx = state_map[&current_set];
-            for &c in &alphabet {
-                let move_set = self.move_on(&current_set, c);
+
+            for byte in 0u8..=255 {
+                let move_set = self.move_on(&current_set, byte);
                 if move_set.is_empty() {
                     continue;
                 }
@@ -112,15 +111,15 @@ impl NFA {
 
                 let next_idx = *state_map.entry(next_set.clone()).or_insert_with(|| {
                     let idx = dfa_states.len();
-                    dfa_states.push(HashMap::new());
+                    dfa_states.push([None; 256]);
                     queue.push_back(next_set.clone());
                     idx
                 });
 
-                dfa_states[current_idx].insert(c, next_idx);
+                dfa_states[current_idx][byte as usize] = Some(next_idx);
             }
 
-            if current_set.contains(&self.accept) {
+            if current_set.contains(self.accept) {
                 accepting.insert(current_idx);
             }
         }
@@ -135,7 +134,7 @@ impl NFA {
 
 pub fn from_regex(regex: &Regex) -> NFA {
     match regex {
-        Regex::Char(c) => {
+        Regex::Byte(b) => {
             let mut nfa = NFA {
                 states: vec![],
                 start: 0,
@@ -145,7 +144,7 @@ pub fn from_regex(regex: &Regex) -> NFA {
             let end = nfa.new_state();
             nfa.start = start;
             nfa.accept = end;
-            nfa.add_transition(start, end, Transition::Char(*c));
+            nfa.add_transition(start, end, Transition::Byte(*b));
             nfa
         }
 
@@ -235,13 +234,13 @@ mod structure_tests {
 
     #[test]
     fn from_regex_char_structure() {
-        let actual = from_regex(&Char('a'));
+        let actual = from_regex(&Byte(b'a'));
 
         let expected = NFA {
             states: vec![
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('a'),
+                        label: Transition::Byte(b'a'),
                         to: 1,
                     }],
                 },
@@ -256,13 +255,13 @@ mod structure_tests {
 
     #[test]
     fn from_regex_concat_structure() {
-        let actual = from_regex(&Concat(b(Char('x')), b(Char('y'))));
+        let actual = from_regex(&Concat(b(Byte(b'x')), b(Byte(b'y'))));
 
         let expected = NFA {
             states: vec![
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('x'),
+                        label: Transition::Byte(b'x'),
                         to: 1,
                     }],
                 },
@@ -274,7 +273,7 @@ mod structure_tests {
                 },
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('y'),
+                        label: Transition::Byte(b'y'),
                         to: 3,
                     }],
                 },
@@ -289,7 +288,7 @@ mod structure_tests {
 
     #[test]
     fn from_regex_alt_structure() {
-        let actual = from_regex(&Alt(b(Char('a')), b(Char('b'))));
+        let actual = from_regex(&Alt(b(Byte(b'a')), b(Byte(b'b'))));
 
         let expected = NFA {
             states: vec![
@@ -309,7 +308,7 @@ mod structure_tests {
                 // state 1: a start
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('a'),
+                        label: Transition::Byte(b'a'),
                         to: 2,
                     }],
                 },
@@ -323,7 +322,7 @@ mod structure_tests {
                 // state 3: b start
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('b'),
+                        label: Transition::Byte(b'b'),
                         to: 4,
                     }],
                 },
@@ -346,13 +345,13 @@ mod structure_tests {
 
     #[test]
     fn from_regex_star_structure() {
-        let actual = from_regex(&Star(Box::new(Char('z'))));
+        let actual = from_regex(&Star(Box::new(Byte(b'z'))));
 
         let expected = NFA {
             states: vec![
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('z'),
+                        label: Transition::Byte(b'z'),
                         to: 1,
                     }],
                 },
@@ -383,7 +382,7 @@ mod structure_tests {
                 State { edges: vec![] },
                 State {
                     edges: vec![Edge {
-                        label: Transition::Char('z'),
+                        label: Transition::Byte(b'z'),
                         to: 1,
                     }],
                 },

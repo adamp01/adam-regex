@@ -2,6 +2,7 @@ use std::str::Chars;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
+    Byte(u8),
     Char(char),
     Star,
     LParen,
@@ -27,6 +28,7 @@ impl<'a> Lexer<'a> {
 
     pub fn next_token(&mut self) -> Token {
         match self.next_char() {
+            Some(c) if c.is_ascii_alphanumeric() => Token::Byte(c as u8),
             Some(c) if c.is_alphanumeric() => Token::Char(c),
             Some('*') => Token::Star,
             Some('|') => Token::Alt,
@@ -57,7 +59,7 @@ mod lexer_tests {
 
     #[test]
     fn single_token_tests() {
-        assert_eq!(lex_all("a"), vec![Token::Char('a'), Token::EOF]);
+        assert_eq!(lex_all("a"), vec![Token::Byte(b'a'), Token::EOF]);
         assert_eq!(lex_all("*"), vec![Token::Star, Token::EOF]);
         assert_eq!(lex_all("|"), vec![Token::Alt, Token::EOF]);
         assert_eq!(lex_all("("), vec![Token::LParen, Token::EOF]);
@@ -69,12 +71,12 @@ mod lexer_tests {
         assert_eq!(
             lex_all("a*b|(c)"),
             vec![
-                Token::Char('a'),
+                Token::Byte(b'a'),
                 Token::Star,
-                Token::Char('b'),
+                Token::Byte(b'b'),
                 Token::Alt,
                 Token::LParen,
-                Token::Char('c'),
+                Token::Byte(b'c'),
                 Token::RParen,
                 Token::EOF,
             ]
@@ -107,13 +109,13 @@ mod lexer_tests {
         assert_eq!(
             lex_all("azAZ019"),
             vec![
-                Token::Char('a'),
-                Token::Char('z'),
-                Token::Char('A'),
-                Token::Char('Z'),
-                Token::Char('0'),
-                Token::Char('1'),
-                Token::Char('9'),
+                Token::Byte(b'a'),
+                Token::Byte(b'z'),
+                Token::Byte(b'A'),
+                Token::Byte(b'Z'),
+                Token::Byte(b'0'),
+                Token::Byte(b'1'),
+                Token::Byte(b'9'),
                 Token::EOF
             ]
         );
@@ -126,14 +128,14 @@ mod lexer_tests {
             vec![
                 Token::LParen,
                 Token::LParen,
-                Token::Char('a'),
-                Token::Char('a'),
+                Token::Byte(b'a'),
+                Token::Byte(b'a'),
                 Token::Star,
                 Token::RParen,
                 Token::Alt,
                 Token::LParen,
-                Token::Char('b'),
-                Token::Char('b'),
+                Token::Byte(b'b'),
+                Token::Byte(b'b'),
                 Token::RParen,
                 Token::RParen,
                 Token::Star,
@@ -151,7 +153,7 @@ mod lexer_tests {
                 Token::Char('λ'),
                 Token::Char('π'),
                 Token::Char('Ж'),
-                Token::Char('9'),
+                Token::Byte(b'9'),
                 Token::EOF
             ]
         );
