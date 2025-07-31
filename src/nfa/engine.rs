@@ -35,6 +35,14 @@ impl NFA {
     fn add_transition(&mut self, from: usize, to: usize, label: Transition) {
         self.states[from].edges.push(Edge { label, to })
     }
+
+    fn offset(&mut self, offset: usize) {
+        self.states.iter_mut().for_each(|s| {
+            s.edges.iter_mut().for_each(|e| e.to += offset);
+        });
+        self.start += offset;
+        self.accept += offset;
+    }
 }
 
 pub fn from_regex(regex: &Regex) -> NFA {
@@ -58,12 +66,7 @@ pub fn from_regex(regex: &Regex) -> NFA {
             let mut b = from_regex(right);
 
             let offset = a.states.len();
-            b.states.iter_mut().for_each(|s| {
-                s.edges.iter_mut().for_each(|e| e.to += offset);
-            });
-
-            b.start += offset;
-            b.accept += offset;
+            b.offset(offset);
 
             let mut states = a.states;
             states[a.accept].edges.push(Edge {
@@ -89,22 +92,21 @@ pub fn from_regex(regex: &Regex) -> NFA {
                 accept: 0,
             };
             let start = nfa.new_state();
+
             let offset_a = nfa.states.len();
-            a.states.iter_mut().for_each(|s| {
-                s.edges.iter_mut().for_each(|e| e.to += offset_a);
-            });
+            a.offset(offset_a);
             nfa.states.extend(a.states);
+
             let offset_b = nfa.states.len();
-            b.states.iter_mut().for_each(|s| {
-                s.edges.iter_mut().for_each(|e| e.to += offset_b);
-            });
+            b.offset(offset_b);
             nfa.states.extend(b.states);
+
             let accept = nfa.new_state();
 
-            nfa.add_transition(start, a.start + offset_a, Transition::Epsilon);
-            nfa.add_transition(start, b.start + offset_b, Transition::Epsilon);
-            nfa.add_transition(a.accept + offset_a, accept, Transition::Epsilon);
-            nfa.add_transition(b.accept + offset_b, accept, Transition::Epsilon);
+            nfa.add_transition(start, a.start, Transition::Epsilon);
+            nfa.add_transition(start, b.start, Transition::Epsilon);
+            nfa.add_transition(a.accept, accept, Transition::Epsilon);
+            nfa.add_transition(b.accept, accept, Transition::Epsilon);
 
             nfa.start = start;
             nfa.accept = accept;
