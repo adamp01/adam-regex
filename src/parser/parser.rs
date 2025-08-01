@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     fn parse_concat(&mut self) -> Regex {
         let mut expr = self.parse_postfix();
 
-        while matches!(self.current, Token::Byte(_) | Token::LParen) {
+        while self.current.is_atom_start() {
             let right = self.parse_postfix();
             expr = Regex::Concat(Box::new(expr), Box::new(right));
         }
@@ -75,9 +75,8 @@ impl<'a> Parser<'a> {
                 node
             }
             Token::Dot => {
-                let node = Regex::Dot;
                 self.advance();
-                node
+                Regex::Dot
             }
             Token::LParen => {
                 self.advance();
@@ -193,5 +192,17 @@ mod parser_tests {
     #[should_panic(expected = "Unexpected token")]
     fn test_invalid_start_token_panics() {
         parse("*a");
+    }
+
+    #[test]
+    fn test_concat_dot() {
+        let ast = parse("a*.b*");
+        assert_eq!(
+            ast,
+            Concat(
+                boxed(Concat(boxed(Star(boxed(Byte(b'a')))), boxed(Dot))),
+                boxed(Star(boxed(Byte(b'b'))))
+            ),
+        )
     }
 }

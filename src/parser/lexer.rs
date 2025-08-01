@@ -14,6 +14,12 @@ pub enum Token {
     EOF,
 }
 
+impl Token {
+    pub fn is_atom_start(&self) -> bool {
+        matches!(self, Token::Byte(_) | Token::Dot | Token::LParen)
+    }
+}
+
 pub struct Lexer<'a> {
     input: Chars<'a>,
 }

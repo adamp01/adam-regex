@@ -125,7 +125,7 @@ fn bench_optional_char(c: &mut Criterion) {
 
 fn bench_mixed_dot_plus_optional(c: &mut Criterion) {
     let pattern = "a?.b+";
-    let input = "a".repeat(1000) + "z" + &"b".repeat(1000);
+    let input = String::from("az") + &"b".repeat(1000);
 
     let adam = AdamRegex::from_str(pattern).unwrap();
     let std = StdRegex::new(pattern).unwrap();
