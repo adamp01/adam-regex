@@ -6,8 +6,15 @@ The engine will be exposed to Python via FFI, where it will be benchmarked again
 
 ### Regex Benchmark: Matching on 10,000 character input
 
-| Pattern     | Engine          | Time (µs) | Notes                        |
-|-------------|------------------|-----------|------------------------------|
-| `(a\|b)*`    | adam (v1)        | 210       | Char based, no DFA minimisation    |
-| `(a\|b)*`    | adam (v2)        | 25       | u8 based, no DFA minimisation    |
-| `(a\|b)*`    | std::regex       | 0.012     |   |
+| Pattern         | Engine        | Time (µs) | Notes |
+|-----------------|---------------|-----------|-------|
+| simple repetition | adam          |     0.051 |       |
+| simple repetition | regex         |     0.013 |       |
+| nested star     | adam          |     2.540 |       |
+| nested star     | regex         |     0.014 |       |
+| alt explosion   | adam          |    41.359 |       |
+| alt explosion   | regex         |    69.750 |       |
+| long concat     | adam          |     0.272 |       |
+| long concat     | regex         |     0.071 |       |
+| suffix fail     | adam          |    26.073 |       |
+| suffix fail     | regex         |    17.161 |       |
