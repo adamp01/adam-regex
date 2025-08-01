@@ -11,12 +11,12 @@ pub struct AdamRegex {
 impl AdamRegex {
     pub fn from_str(input: &str) -> Result<Self, String> {
         let ast = parser::parse(input);
-        let dfa = compiler::compile(&ast);
+        let dfa = compiler::compile(&ast, true);
         Ok(Self { dfa })
     }
 
     pub fn from_ast(ast: &Regex) -> Self {
-        let dfa = compiler::compile(ast);
+        let dfa = compiler::compile(ast, true);
         Self { dfa }
     }
 

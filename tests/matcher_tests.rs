@@ -1,4 +1,5 @@
 use adam_regex::ast::Regex::{self, *};
+use adam_regex::engine::compiler;
 use adam_regex::matcher::AdamRegex;
 
 fn b(r: Regex) -> Box<Regex> {
@@ -76,4 +77,56 @@ fn long_repetition() {
     assert!(dfa.matches("aaaaab"));
     assert!(!dfa.matches("a"));
     assert!(!dfa.matches(""));
+}
+
+#[test]
+fn test_dfa_minimization_reduces_states() {
+    let cases: Vec<Regex> = vec![
+        // a*
+        Star(b(Byte(b'a'))),
+        // (a|b)*
+        Star(b(Alt(b(Byte(b'a')), b(Byte(b'b'))))),
+        // (a|b|a)
+        Alt(b(Alt(b(Byte(b'a')), b(Byte(b'b')))), b(Byte(b'a'))),
+        // ((a|b)*)*
+        Star(b(Star(b(Alt(b(Byte(b'a')), b(Byte(b'b'))))))),
+    ];
+
+    for pattern in cases {
+        let minimized = compiler::compile(&pattern, true);
+        let original = compiler::compile(&pattern, false);
+
+        assert!(
+            minimized.states.len() < original.states.len(),
+            "Expected minimized DFA to shrink for pattern '{}': {} → {}",
+            pattern,
+            original.states.len(),
+            minimized.states.len()
+        );
+    }
+}
+
+#[test]
+fn test_dfa_minimization_preserves_state_count() {
+    let cases: Vec<Regex> = vec![
+        // (a|a)
+        Alt(b(Byte(b'a')), b(Byte(b'a'))),
+        // (ab|ab)
+        Alt(
+            b(Concat(b(Byte(b'a')), b(Byte(b'b')))),
+            b(Concat(b(Byte(b'a')), b(Byte(b'b')))),
+        ),
+    ];
+
+    for pattern in cases {
+        let minimized = compiler::compile(&pattern, true);
+        let original = compiler::compile(&pattern, false);
+
+        assert_eq!(
+            minimized.states.len(),
+            original.states.len(),
+            "Expected no change in DFA size for pattern '{}'",
+            pattern
+        );
+    }
 }
