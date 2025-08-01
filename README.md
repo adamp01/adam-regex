@@ -18,3 +18,11 @@ The engine will be exposed to Python via FFI, where it will be benchmarked again
 | long concat     | regex         |     0.071 |       |
 | suffix fail     | adam          |    26.073 |       |
 | suffix fail     | regex         |    17.161 |       |
+| dot wildcard    | adam          |     0.002 |       |
+| dot wildcard    | regex         |     2.072 |       |
+| plus repetition | adam          |    25.809 |       |
+| plus repetition | regex         |     0.017 |       |
+| optional char   | adam          |     1.350 |       |
+| optional char   | regex         |     0.013 |       |
+| mixed dot plus opt | adam          |     0.002 |       |
+| mixed dot plus opt | regex         |     0.042 |       |

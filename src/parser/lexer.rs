@@ -5,6 +5,9 @@ pub enum Token {
     Byte(u8),
     Char(char),
     Star,
+    Plus,
+    Question,
+    Dot,
     LParen,
     RParen,
     Alt,
@@ -31,6 +34,9 @@ impl<'a> Lexer<'a> {
             Some(c) if c.is_ascii_alphanumeric() => Token::Byte(c as u8),
             Some(c) if c.is_alphanumeric() => Token::Char(c),
             Some('*') => Token::Star,
+            Some('+') => Token::Plus,
+            Some('?') => Token::Question,
+            Some('.') => Token::Dot,
             Some('|') => Token::Alt,
             Some('(') => Token::LParen,
             Some(')') => Token::RParen,
@@ -64,6 +70,9 @@ mod lexer_tests {
         assert_eq!(lex_all("|"), vec![Token::Alt, Token::EOF]);
         assert_eq!(lex_all("("), vec![Token::LParen, Token::EOF]);
         assert_eq!(lex_all(")"), vec![Token::RParen, Token::EOF]);
+        assert_eq!(lex_all("+"), vec![Token::Plus, Token::EOF]);
+        assert_eq!(lex_all("?"), vec![Token::Question, Token::EOF]);
+        assert_eq!(lex_all("."), vec![Token::Dot, Token::EOF]);
     }
 
     #[test]
@@ -89,11 +98,11 @@ mod lexer_tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unknown character: +")]
-    fn invalid_character_plus() {
-        let mut lexer = Lexer::new("a+");
+    #[should_panic(expected = "Unknown character: &")]
+    fn invalid_character_ampersand() {
+        let mut lexer = Lexer::new("a&");
         lexer.next_token(); // 'a'
-        lexer.next_token(); // should panic on '+'
+        lexer.next_token(); // should panic on '&'
     }
 
     #[test]

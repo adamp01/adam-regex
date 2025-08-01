@@ -3,7 +3,10 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Regex {
     Byte(u8),
+    Dot,
     Star(Box<Regex>),
+    Plus(Box<Regex>),
+    Optional(Box<Regex>),
     Concat(Box<Regex>, Box<Regex>),
     Alt(Box<Regex>, Box<Regex>),
 }
@@ -15,7 +18,10 @@ impl fmt::Display for Regex {
                 Regex::Alt(_, _) => 1,
                 Regex::Concat(_, _) => 2,
                 Regex::Star(_) => 3,
-                Regex::Byte(_) => 4,
+                Regex::Plus(_) => 4,
+                Regex::Optional(_) => 5,
+                Regex::Dot => 6,
+                Regex::Byte(_) => 7,
             };
             inner_prec < outer_prec
         }
@@ -36,6 +42,23 @@ impl fmt::Display for Regex {
                     } else {
                         write!(f, "{}*", inner)
                     }
+                }
+                Regex::Plus(inner) => {
+                    if needs_parens(inner, 4) {
+                        write!(f, "({})+", inner)
+                    } else {
+                        write!(f, "{}+", inner)
+                    }
+                }
+                Regex::Optional(inner) => {
+                    if needs_parens(inner, 5) {
+                        write!(f, "({})?", inner)
+                    } else {
+                        write!(f, "{}?", inner)
+                    }
+                }
+                Regex::Dot => {
+                    write!(f, ".")
                 }
                 Regex::Concat(left, right) => {
                     if needs_parens(left, 2) {

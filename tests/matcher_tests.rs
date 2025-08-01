@@ -80,6 +80,37 @@ fn long_repetition() {
 }
 
 #[test]
+fn dot_matches_anything() {
+    let pattern = Dot;
+    let dfa = dfa_from(&pattern);
+    assert!(dfa.matches("a"));
+    assert!(dfa.matches("z"));
+    assert!(dfa.matches("1"));
+    assert!(!dfa.matches(""));
+    assert!(!dfa.matches("ab"));
+}
+
+#[test]
+fn plus_matches_one_or_more() {
+    let pattern = Plus(b(Byte(b'a')));
+    let dfa = dfa_from(&pattern);
+    assert!(dfa.matches("a"));
+    assert!(dfa.matches("aaaa"));
+    assert!(!dfa.matches(""));
+    assert!(!dfa.matches("b"));
+}
+
+#[test]
+fn optional_matches_zero_or_one() {
+    let pattern = Optional(b(Byte(b'a')));
+    let dfa = dfa_from(&pattern);
+    assert!(dfa.matches(""));
+    assert!(dfa.matches("a"));
+    assert!(!dfa.matches("aa"));
+    assert!(!dfa.matches("b"));
+}
+
+#[test]
 fn test_dfa_minimization_reduces_states() {
     let cases: Vec<Regex> = vec![
         // a*

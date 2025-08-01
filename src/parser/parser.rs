@@ -33,22 +33,35 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_concat(&mut self) -> Regex {
-        let mut expr = self.parse_star();
+        let mut expr = self.parse_postfix();
 
         while matches!(self.current, Token::Byte(_) | Token::LParen) {
-            let right = self.parse_star();
+            let right = self.parse_postfix();
             expr = Regex::Concat(Box::new(expr), Box::new(right));
         }
 
         expr
     }
 
-    fn parse_star(&mut self) -> Regex {
+    fn parse_postfix(&mut self) -> Regex {
         let mut expr = self.parse_atom();
 
-        while self.current == Token::Star {
-            self.advance();
-            expr = Regex::Star(Box::new(expr));
+        loop {
+            match self.current {
+                Token::Star => {
+                    self.advance();
+                    expr = Regex::Star(Box::new(expr));
+                }
+                Token::Plus => {
+                    self.advance();
+                    expr = Regex::Plus(Box::new(expr));
+                }
+                Token::Question => {
+                    self.advance();
+                    expr = Regex::Optional(Box::new(expr));
+                }
+                _ => break,
+            }
         }
 
         expr
@@ -58,6 +71,11 @@ impl<'a> Parser<'a> {
         match &self.current {
             Token::Byte(b) => {
                 let node = Regex::Byte(*b);
+                self.advance();
+                node
+            }
+            Token::Dot => {
+                let node = Regex::Dot;
                 self.advance();
                 node
             }

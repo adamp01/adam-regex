@@ -78,12 +78,76 @@ fn bench_suffix_fail(c: &mut Criterion) {
     });
 }
 
+fn bench_dot_wildcard(c: &mut Criterion) {
+    let pattern = ".".repeat(1000);
+    let input = "a".repeat(1000);
+
+    let adam = AdamRegex::from_str(&pattern).unwrap();
+    let std = StdRegex::new(&pattern).unwrap();
+
+    c.bench_function("dot wildcard - adam", |b| {
+        b.iter(|| adam.matches(black_box(&input)))
+    });
+    c.bench_function("dot wildcard - regex", |b| {
+        b.iter(|| std.is_match(black_box(&input)))
+    });
+}
+
+fn bench_plus_repetition(c: &mut Criterion) {
+    let pattern = "a+";
+    let input = "a".repeat(10000);
+
+    let adam = AdamRegex::from_str(pattern).unwrap();
+    let std = StdRegex::new(pattern).unwrap();
+
+    c.bench_function("plus repetition - adam", |b| {
+        b.iter(|| adam.matches(black_box(&input)))
+    });
+    c.bench_function("plus repetition - regex", |b| {
+        b.iter(|| std.is_match(black_box(&input)))
+    });
+}
+
+fn bench_optional_char(c: &mut Criterion) {
+    let pattern = "a?".repeat(1000);
+    let input = "a".repeat(500);
+
+    let adam = AdamRegex::from_str(&pattern).unwrap();
+    let std = StdRegex::new(&pattern).unwrap();
+
+    c.bench_function("optional char - adam", |b| {
+        b.iter(|| adam.matches(black_box(&input)))
+    });
+    c.bench_function("optional char - regex", |b| {
+        b.iter(|| std.is_match(black_box(&input)))
+    });
+}
+
+fn bench_mixed_dot_plus_optional(c: &mut Criterion) {
+    let pattern = "a?.b+";
+    let input = "a".repeat(1000) + "z" + &"b".repeat(1000);
+
+    let adam = AdamRegex::from_str(pattern).unwrap();
+    let std = StdRegex::new(pattern).unwrap();
+
+    c.bench_function("mixed dot plus opt - adam", |b| {
+        b.iter(|| adam.matches(black_box(&input)))
+    });
+    c.bench_function("mixed dot plus opt - regex", |b| {
+        b.iter(|| std.is_match(black_box(&input)))
+    });
+}
+
 criterion_group!(
     benches,
     bench_simple_repetition,
     bench_nested_star,
     bench_alt_explosion,
     bench_long_concat,
-    bench_suffix_fail
+    bench_suffix_fail,
+    bench_dot_wildcard,
+    bench_plus_repetition,
+    bench_optional_char,
+    bench_mixed_dot_plus_optional,
 );
 criterion_main!(benches);

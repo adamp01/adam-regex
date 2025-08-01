@@ -80,7 +80,7 @@ impl NFA {
                 }
             }
         }
-        next 
+        next
     }
 
     pub fn to_dfa(&self) -> DFA {
@@ -148,22 +148,35 @@ pub fn from_regex(regex: &Regex) -> NFA {
             nfa
         }
 
+        Regex::Dot => {
+            let mut nfa = NFA {
+                states: vec![],
+                start: 0,
+                accept: 0,
+            };
+            let start = nfa.new_state();
+            let end = nfa.new_state();
+            nfa.start = start;
+            nfa.accept = end;
+            for b in 0u8..=255 {
+                nfa.add_transition(start, end, Transition::Byte(b));
+            }
+            nfa
+        }
+
         Regex::Concat(left, right) => {
-            let a = from_regex(left);
+            let mut a = from_regex(left);
             let mut b = from_regex(right);
 
             let offset = a.states.len();
             b.offset(offset);
 
-            let mut states = a.states;
-            states[a.accept].edges.push(Edge {
-                label: Transition::Epsilon,
-                to: b.start,
-            });
-            states.extend(b.states);
+            a.add_transition(a.accept, b.start, Transition::Epsilon);
+
+            a.states.extend(b.states);
 
             NFA {
-                states,
+                states: a.states,
                 start: a.start,
                 accept: b.accept,
             }
@@ -209,15 +222,52 @@ pub fn from_regex(regex: &Regex) -> NFA {
             };
             let start = nfa.new_state();
             let accept = nfa.new_state();
+            nfa.start = start;
+            nfa.accept = accept;
 
             nfa.add_transition(start, base.start, Transition::Epsilon);
             nfa.add_transition(start, accept, Transition::Epsilon);
             nfa.add_transition(base.accept, base.start, Transition::Epsilon);
             nfa.add_transition(base.accept, accept, Transition::Epsilon);
 
-            nfa.states.extend(base.states);
+            nfa
+        }
+
+        Regex::Plus(inner) => {
+            let base = from_regex(inner);
+            let mut nfa = NFA {
+                states: base.states.clone(),
+                start: 0,
+                accept: 0,
+            };
+            let start = nfa.new_state();
+            let accept = nfa.new_state();
             nfa.start = start;
             nfa.accept = accept;
+
+            nfa.add_transition(start, base.start, Transition::Epsilon);
+            nfa.add_transition(base.accept, base.start, Transition::Epsilon);
+            nfa.add_transition(base.accept, accept, Transition::Epsilon);
+
+            nfa
+        }
+
+        Regex::Optional(inner) => {
+            let base = from_regex(inner);
+            let mut nfa = NFA {
+                states: base.states.clone(),
+                start: 0,
+                accept: 0,
+            };
+            let start = nfa.new_state();
+            let accept = nfa.new_state();
+            nfa.start = start;
+            nfa.accept = accept;
+
+            nfa.add_transition(start, base.start, Transition::Epsilon);
+            nfa.add_transition(start, accept, Transition::Epsilon);
+            nfa.add_transition(base.accept, accept, Transition::Epsilon);
+
             nfa
         }
     }
@@ -378,13 +428,6 @@ mod structure_tests {
                             to: 3,
                         },
                     ],
-                },
-                State { edges: vec![] },
-                State {
-                    edges: vec![Edge {
-                        label: Transition::Byte(b'z'),
-                        to: 1,
-                    }],
                 },
                 State { edges: vec![] },
             ],
